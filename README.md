@@ -1,5 +1,5 @@
 # bibTexParser
-Import bibTex files and have excess the the different attributes of each entry. Conveinet for reformating the keys.
+Import bibTex files and have excess the the different attributes of each entry. Conveinet for reformating the keys. Mostly created because the default endnote bibTex output uses the archive order (the order you added things to the endnote doc) as the keys which is pretty useless.
 
 version 1: Two classes exists:
 
