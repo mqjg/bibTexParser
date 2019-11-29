@@ -1,4 +1,5 @@
 import os
+import argparse
 
 defEnc = 'utf-8-sig'
 maxCitations = 1000
@@ -69,9 +70,9 @@ class bib:
     def __init__(self, path, enc = defEnc):
         self.bib = []
 
-        self.importFile(path, enc = enc)
+        self.importBib(path, enc = enc)
 
-    def importFile(self, path, enc = defEnc):
+    def importBib(self, path, enc = defEnc):
         count = 0 #definitely not infinite loop protection b/c I'm totally confident in my exit condition.
 
         with open(path,"r", encoding = enc) as f:
@@ -91,13 +92,21 @@ class bib:
         if not os.path.exists(path):
             with open(path,"w",encoding = enc) as f:
                 for entry in self.bib:
-                    stringEntry = entry.exportEntry(entry.author[:entry.author.find(",")] +entry.year)
-                    #print(stringEntry)
+                    if entry.author.find(",") < entry.author.find(" "):
+                        key = entry.author[:entry.author.find(",")] + entry.year
+                    else:
+                        key = entry.author[:entry.author.find(" ")] + entry.year
+                    stringEntry = entry.exportEntry(key)
                     f.write(stringEntry+"\n\n")
         else:
             print("File already exists. Try a different name!")
 
 
 if __name__ == '__main__':
-    print("Whoa, slow down there cowboy.")
+    parse=argparse.ArgumentParser()
+    parse.add_argument("-r", "--root", dest="root", help="path to bibTex file.")
+    parse.add_argument("-o", "--output", dest="output", help="new filename path")
+    args = parse.parse_args()
+
+    bib(args.root).exportBib(args.output)
 
