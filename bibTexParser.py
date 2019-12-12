@@ -1,67 +1,62 @@
 import os
 import argparse
+from pylatexenc.latexencode import unicode_to_latex
+from unidecode import unidecode
 
 defEnc = 'utf-8-sig'
 maxCitations = 1000
 
+def getSubString(string, firstChar, secondChar,start=0):
+    """
+    Gives the substring of string between firstChar and secondChar. Starts looking from start. If it is unable to find a substring returns an empty string.
+    """
+    front = string.find(firstChar,start)
+    back = string.find(secondChar,front+1)
+    if front > -1 and back > -1:
+        return (string[front+1:back],back)
+    else:
+        return ("",-1)
+
+
 class entry:
     def __init__(self, stringEntry):
-        self.flag = None
-        self.key = None
-        self.author = None
-        self.title = None
-        self.journal = None
-        self.year = None
-        self.type = None
-
+        self.attributes = {}
         self.parseStringEntry(stringEntry)
 
     def parseStringEntry(self, stringEntry):
-        """
-        Assuming a string of the form:
-        @article{RN14,\n   
-        author = {Anderson, DM and Worster, M Grae and Davis, Stephen H},\n   
-        title = {The case for a dynamic contact angle in containerless solidification},\n   
-        journal = {Journal of crystal growth},\n   
-        volume = {163},\n   
-        number = {3},\n   
-        pages = {329-338},\n   
-        ISSN = {0022-0248},\n   
-        year = {1996},\n   
-        type = {Journal Article}\n}
+            """
+            Assuming a string of the form:
+            @article{RN14,\n   
+            author = {Anderson, DM and Worster, M Grae and Davis, Stephen H},\n   
+            title = {The case for a dynamic contact angle in containerless solidification},\n   
+            journal = {Journal of crystal growth},\n   
+            volume = {163},\n   
+            number = {3},\n   
+            pages = {329-338},\n   
+            ISSN = {0022-0248},\n   
+            year = {1996},\n   
+            type = {Journal Article}\n}
 
-        Give or take some additonal \ns. 
-        """
-        attributes = vars(self) #This gets a dictionary of all the class variables and thier assocatied values.
-        for var in attributes: #Itterating through the dictionary
-            if var == "key":
-                init = stringEntry.find("@") #The key isn't labeled so the closest thing is the @ at the start of the bibTex entry.
-                if init > -1:
-                    front = stringEntry.find("{",init)+1 #look for the front bracket before the key
-                    back = stringEntry.find(",",init) #Look for the comma after the key.
-                    attributes[var] = stringEntry[front:back] #Set the key to part of the string.
-            elif var == "flag":
-                init = stringEntry.find("@") #The flag isn't labeled so the closest thing is the @ at the start of the bibTex entry.
-                if init > -1:
-                    front = init+1 #the flag starts on index after the @
-                    back = stringEntry.find("{",init) #Look for the bracket after the flag.
-                    attributes[var] = stringEntry[front:back] #Set the flag to part of the string.
-            else:
-                init = stringEntry.find(var) #Find the posistion of the label.
-                if init > -1:
-                    front = stringEntry.find("{",init)+1 #Look for the front bracket of the label's entry.
-                    back = stringEntry.find("}",init) #Look for the back bracket of the label's entry.
-                    attributes[var] = stringEntry[front:back] #Set the label to part of the string.
+            Give or take some additonal \ns. 
+            """
+            (subString,index) = getSubString(stringEntry,"@","{",0)
+            self.attributes['flag'] = subString.strip()
+
+            (subString,index) = getSubString(stringEntry,"{",",",0)
+            self.attributes['key'] = subString.strip()
+
+            while (subString,index) != ("",-1):
+                (attribute,index) = getSubString(stringEntry,",","=",index)
+                (subString,index) = getSubString(stringEntry,"{","}",index)
+                if attribute != "" and subString != "": #This line seems redundant but it stops an empty string from being added to the dicitonary.
+                    self.attributes[attribute.strip()] = subString.strip()
 
     def exportEntry(self,keyVal):
-        attributes = vars(self) #This gets a dictionary of all the class variables and thier assocatied values.
-        #del attributes["flag"]
-
-        stringEntry = f"@{self.flag}{{{keyVal},\n"
-        for var in attributes: #Itterating through the dictionary
+        stringEntry = f"@{self.attributes['flag']}{{{unidecode(keyVal)},\n"
+        for var in self.attributes: #Itterating through the dictionary
             if not var == "key" and not var == "flag":
-                stringEntry = stringEntry + f" {var} = {{{attributes[var]}}},\n"
-        stringEntry = stringEntry[:-2] + "\n}"
+                stringEntry = stringEntry + f" {var} = {{{unicode_to_latex(self.attributes[var])}}},\n"
+        stringEntry = stringEntry[:-2] + "\n}" #Trims empty entry from list b/c of the exit condition I used in the while loop.
 
         return stringEntry
 
@@ -92,10 +87,14 @@ class bib:
         if not os.path.exists(path):
             with open(path,"w",encoding = enc) as f:
                 for entry in self.bib:
-                    if entry.author.find(",") < entry.author.find(" "):
-                        key = entry.author[:entry.author.find(",")] + entry.year
+                    #this formats the keys to be authorYear. No other format is available yet. This will also crash if either is missing.
+                    author = entry.attributes['author']
+                    year = entry.attributes['year']
+                    if author.find(",") < author.find(" "):
+                        key = author[:author.find(",")] + year
                     else:
-                        key = entry.author[:entry.author.find(" ")] + entry.year
+                        key = author[:author.find(" ")] + year
+
                     stringEntry = entry.exportEntry(key)
                     f.write(stringEntry+"\n\n")
         else:
@@ -110,3 +109,6 @@ if __name__ == '__main__':
 
     bib(args.root).exportBib(args.output)
 
+#"@article{RN14,author = {Anderson, DM and Worster, M Grae and Davis, Stephen H},title = {The case for a dynamic contact angle in containerless solidification},journal = {Journal of crystal growth},volume = {163},number = {3},pages = {329-338},ISSN = {0022-0248},year = {1996},type = {Journal Article}}"
+
+#"@article{RN9,author = {Méndez-Velasco, Carlos and Goff, H Douglas},title = {Fat structure in ice cream: A study on the types of fat interactions},journal = {Food Hydrocolloids},volume = {29},number = {1},pages = {152-159},ISSN = {0268-005X},year = {2012},type = {Journal Article}}"
