@@ -84,6 +84,7 @@ class bib:
             count += 1
 
     def exportBib(self, path, enc = defEnc):
+        keys = []
         if not os.path.exists(path):
             with open(path,"w",encoding = enc) as f:
                 for entry in self.bib:
@@ -95,7 +96,15 @@ class bib:
                     else:
                         key = author[:author.find(" ")] + year
 
-                    stringEntry = entry.exportEntry(key)
+                    #This loop deal with potential duplicate keys by adding a number to the end of the string.
+                    count=2
+                    newKey = key
+                    while newKey in keys:
+                        newKey = key + "-" +str(count)
+
+                    keys.append(newKey)
+
+                    stringEntry = entry.exportEntry(newKey)
                     f.write(stringEntry+"\n\n")
         else:
             print("File already exists. Try a different name!")
