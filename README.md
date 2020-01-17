@@ -14,3 +14,6 @@ the entry class now has a function exportEntry((str) keyVal) which returns a str
 This function is used in the bib class function exportBib(path) which exports a file containing all the entries stored in bib.bib. The keys are autoformatted to be firstAuthorYear. 
 
 Current issues is that accents and stuff are not in latex format. So they still won't be properly imported in latex. 
+
+v6
+Formatting for latex symbols is autmatically implemented when a file is processed. Keys are autmatically formatted in unicode characters. The format of the key can now be formatted be providing a pattern "x-y-z" where z,y, and z are attributes of the entry. Non-existant attributes will not be added to the key. 
