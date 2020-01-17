@@ -20,7 +20,7 @@ def getSubString(string, firstChar, secondChar,start=0):
 
 class entry:
     def __init__(self, stringEntry):
-        self.attributes = {}
+        self.attributes = {} #This holds all the information stored in a bibTex entry. 
         self.parseStringEntry(stringEntry)
 
     def parseStringEntry(self, stringEntry):
@@ -51,14 +51,50 @@ class entry:
                 if attribute != "" and subString != "": #This line seems redundant but it stops an empty string from being added to the dicitonary.
                     self.attributes[attribute.strip()] = subString.strip()
 
+    def formatKey(self, form="author-year",delim="-"):
+        """
+        Given a form, returns a simplified (no fancy chars) string to be the new key. If no key can be formed given the form, the original key is returned.
+
+        the syntax for form is bibTex entry attributes seprated by hypens, e.g. author-year will return a key with the first author, followed by the year. 
+
+        For attributes which are composed of multiple words, like authors or titles, the first word will be used. 
+
+        Words like "The" will SHOULD BE excluded. But this has not been incorportated yet.
+        """
+        newKey = ""
+        for var in form.split(delim):
+            if var in self.attributes:
+                rawVar = self.attributes[var]
+
+                commaLoc = rawVar.find(",")
+                spaceLoc = rawVar.find(" ")
+                if commaLoc == -1 and spaceLoc == -1: #If there is niether a comma or space
+                    newKey += rawVar
+                elif commaLoc > 0 and spaceLoc > 0:
+                    if commaLoc < spaceLoc: #I'm pretty sure these can't be the same.
+                        newKey += rawVar[:commaLoc] #if the comma is closer
+                    else:
+                        newKey += rawVar[:spaceLoc] #if the space is closer
+                elif commaLoc > 0 and spaceLoc < 0: #if there is no space, but there is a comma
+                    newKey += rawVar[:commaLoc]
+                elif commaLoc < 0 and spaceLoc > 0: #if there is no comma but there is a space
+                    newKey += rawVar[:spaceLoc]
+
+        if newKey == "":
+            return self.attributes["key"]
+        else:
+            return unidecode(newKey)
+
     def exportEntry(self,keyVal):
-        stringEntry = f"@{self.attributes['flag']}{{{unidecode(keyVal)},\n"
+        stringEntry = f"@{self.attributes['flag']}{{{keyVal},\n"
         for var in self.attributes: #Itterating through the dictionary
             if not var == "key" and not var == "flag":
                 stringEntry = stringEntry + f" {var} = {{{unicode_to_latex(self.attributes[var])}}},\n"
         stringEntry = stringEntry[:-2] + "\n}" #Trims empty entry from list b/c of the exit condition I used in the while loop.
 
         return stringEntry
+
+
 
 
 class bib:
@@ -83,31 +119,22 @@ class bib:
 
             count += 1
 
-    def exportBib(self, path, enc = defEnc):
+    def exportBib(self, path, form = "author-year", delim = "-",enc = defEnc):
         keys = []
-        if not os.path.exists(path):
-            with open(path,"w",encoding = enc) as f:
-                for entry in self.bib:
-                    #this formats the keys to be authorYear. No other format is available yet. This will also crash if either is missing.
-                    author = entry.attributes['author']
-                    year = entry.attributes['year']
-                    if author.find(",") < author.find(" "):
-                        key = author[:author.find(",")] + year
-                    else:
-                        key = author[:author.find(" ")] + year
+        with open(path,"w",encoding = enc) as f:
+            for entry in self.bib:
+                #this gets a formatted key.
+                key = entry.formatKey(form=form,delim=delim)
 
-                    #This loop deal with potential duplicate keys by adding a number to the end of the string.
-                    count=2
-                    newKey = key
-                    while newKey in keys:
-                        newKey = key + "-" +str(count)
+                #This loop deal with potential duplicate keys by adding a number to the end of the string.
+                count=2
+                newKey = key
+                while newKey in keys:
+                    newKey = key + "-" + str(count)
+                keys.append(newKey)
 
-                    keys.append(newKey)
-
-                    stringEntry = entry.exportEntry(newKey)
-                    f.write(stringEntry+"\n\n")
-        else:
-            print("File already exists. Try a different name!")
+                stringEntry = entry.exportEntry(newKey)
+                f.write(stringEntry+"\n\n")
 
 
 if __name__ == '__main__':
@@ -116,7 +143,14 @@ if __name__ == '__main__':
     parse.add_argument("-o", "--output", dest="output", help="new filename path")
     args = parse.parse_args()
 
-    bib(args.root).exportBib(args.output)
+    if os.path.exists(args.root):
+        biblio = bib(args.root)
+        if not os.path.exists(args.output):
+            biblio.exportBib(args.output)
+        else:
+            print("Output file already exists")
+    else:
+        print("Could not find root file.")
 
 #"@article{RN14,author = {Anderson, DM and Worster, M Grae and Davis, Stephen H},title = {The case for a dynamic contact angle in containerless solidification},journal = {Journal of crystal growth},volume = {163},number = {3},pages = {329-338},ISSN = {0022-0248},year = {1996},type = {Journal Article}}"
 
